@@ -9,6 +9,7 @@ import com.google.api.services.calendar.model.EventAttachment;
 import com.google.api.services.calendar.model.EventDateTime;
 import com.google.api.services.calendar.model.ConferenceSolutionKey;
 import com.smartscheduler.scheduler.configuration.GoogleCalendarConfig;
+import com.smartscheduler.scheduler.model.TaskPriority;
 import com.smartscheduler.scheduler.model.TaskRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,9 +51,9 @@ public class CalendarService {
                 .setTimeZone(zoneId.getId());
 
         Event event = new Event()
-                .setSummary(task.getTitle())
-                .setDescription(task.getDescription())
-                .setColorId(resolveColorId(task))
+                .setSummary(resolveSummary(task))
+                .setDescription(resolveDescription(task))
+                .setColorId(resolveColorId(task.getColorId(), task.getPriority()))
                 .setStart(start)
                 .setEnd(end);
 
@@ -78,20 +79,65 @@ public class CalendarService {
         return event.getHtmlLink();
     }
 
-    private String resolveColorId(TaskRequest task) {
-        if (task.getColorId() != null && !task.getColorId().isBlank()) {
-            return task.getColorId();
+    private String resolveSummary(TaskRequest task) {
+        if (hasText(task.getTitle())) {
+            return task.getTitle().trim();
         }
 
-        if (task.getPriority() == null) {
+        if (hasText(task.getDate()) && hasText(task.getTime())) {
+            return "Task on " + task.getDate().trim() + " at " + task.getTime().trim();
+        }
+
+        if (hasText(task.getDate())) {
+            return "Task on " + task.getDate().trim();
+        }
+
+        if (hasText(task.getTime())) {
+            return "Task at " + task.getTime().trim();
+        }
+
+        return "Scheduled task";
+    }
+
+    private String resolveDescription(TaskRequest task) {
+        if (hasText(task.getDescription())) {
+            return task.getDescription().trim();
+        }
+        return resolveSummary(task);
+    }
+
+    public String resolveColorId(String colorId, TaskPriority priority) {
+        if (colorId != null && !colorId.isBlank()) {
+            return colorId;
+        }
+
+        if (priority == null) {
             return null;
         }
 
-        return switch (task.getPriority()) {
+        return switch (priority) {
             case URGENT -> "11";
             case HIGH -> "6";
             case MEDIUM -> "5";
             case LOW -> "2";
         };
+    }
+
+    public TaskPriority resolvePriorityFromColorId(String colorId) {
+        if (colorId == null || colorId.isBlank()) {
+            return null;
+        }
+
+        return switch (colorId) {
+            case "11" -> TaskPriority.URGENT;
+            case "6" -> TaskPriority.HIGH;
+            case "5" -> TaskPriority.MEDIUM;
+            case "2" -> TaskPriority.LOW;
+            default -> null;
+        };
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

@@ -35,6 +35,7 @@ build/
 ### Local App Secrets / OAuth ###
 .oauth-tokens/
 src/main/resources/credentials.json
+application-local.properties
 
 ### OS / Logs ###
 .DS_Store

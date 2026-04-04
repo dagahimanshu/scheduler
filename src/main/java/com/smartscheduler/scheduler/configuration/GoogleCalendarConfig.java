@@ -15,9 +15,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
 
 import java.awt.Desktop;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
@@ -44,11 +46,11 @@ public class GoogleCalendarConfig {
     @Value("${google.oauth.tokens-directory:.oauth-tokens}")
     private String tokensDirectory;
 
-    public void authorizeUser() throws Exception {
-        InputStream in = getClass().getResourceAsStream("/credentials.json");
+    @Value("${google.oauth.credentials-path:}")
+    private String credentialsPath;
 
-        GoogleClientSecrets clientSecrets =
-                GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
+    public void authorizeUser() throws Exception {
+        GoogleClientSecrets clientSecrets = loadClientSecrets();
 
         File tokenStoreDir = new File(tokensDirectory);
 
@@ -73,10 +75,7 @@ public class GoogleCalendarConfig {
     }
 
     public Calendar getCalendarService() throws Exception {
-        InputStream in = getClass().getResourceAsStream("/credentials.json");
-
-        GoogleClientSecrets clientSecrets =
-                GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
+        GoogleClientSecrets clientSecrets = loadClientSecrets();
 
         File tokenStoreDir = new File(tokensDirectory);
 
@@ -101,6 +100,34 @@ public class GoogleCalendarConfig {
                 credential)
                 .setApplicationName(APPLICATION_NAME)
                 .build();
+    }
+
+    private GoogleClientSecrets loadClientSecrets() throws Exception {
+        if (credentialsPath == null || credentialsPath.isBlank()) {
+            throw new IllegalStateException(
+                    "Google OAuth credentials are missing. Set google.oauth.credentials-path in application-local.properties."
+            );
+        }
+
+        try (InputStream in = openCredentialsStream()) {
+            return GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
+        }
+    }
+
+    private InputStream openCredentialsStream() throws Exception {
+        File credentialsFile = new File(credentialsPath);
+        if (credentialsFile.exists()) {
+            return new FileInputStream(credentialsFile);
+        }
+
+        ClassPathResource classPathResource = new ClassPathResource(credentialsPath);
+        if (classPathResource.exists()) {
+            return classPathResource.getInputStream();
+        }
+
+        throw new IllegalStateException(
+                "Google OAuth credentials file not found: " + credentialsPath
+        );
     }
 
     private void openInBrowser(String url) {
