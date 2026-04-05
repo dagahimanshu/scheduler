@@ -7,11 +7,11 @@ import com.smartscheduler.scheduler.service.EventListingService;
 import com.smartscheduler.scheduler.service.PriorityService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletResponse;
 
+
+import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -22,17 +22,19 @@ public class SchedulerController {
     private final EventListingService eventListingService;
     private final GoogleCalendarConfig googleCalendarConfig;
     private final PriorityService priorityService;
+    private final HttpServletResponse httpResponse;
 
     public SchedulerController(
             CalendarService calendarService,
             EventListingService eventListingService,
             GoogleCalendarConfig googleCalendarConfig,
-            PriorityService priorityService
+            PriorityService priorityService, HttpServletResponse httpServletResponse
     ) {
         this.calendarService = calendarService;
         this.eventListingService = eventListingService;
         this.googleCalendarConfig = googleCalendarConfig;
         this.priorityService = priorityService;
+        this.httpResponse = httpServletResponse;
     }
 
     @PostMapping("/tasks")
@@ -55,21 +57,42 @@ public class SchedulerController {
         }
     }
 
-    @PostMapping("/auth/google")
-    public ResponseEntity<String> authorizeGoogle() {
+    // Remove the old @PostMapping("/auth/google") method and replace with:
+    @GetMapping("/auth/google/url")
+    public ResponseEntity<?> getAuthUrl() {
         try {
-            googleCalendarConfig.authorizeUser();
-            return ResponseEntity.ok("Google Calendar authorization completed.");
+            String url = googleCalendarConfig.buildAuthorizationUrl();
+            Map<String, String> response = new LinkedHashMap<>();
+            response.put("url", url);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Authorization failed: " + e.getMessage());
+                    .body("Failed to build auth URL: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/auth/google/callback")
+    public void handleCallback(@RequestParam String code) throws IOException {
+        try {
+            googleCalendarConfig.handleAuthorizationCode(code);
+            // Redirect popup to frontend success page
+            httpResponse.sendRedirect("http://localhost:3000/auth/success");
+        } catch (Exception e) {
+            httpResponse.sendRedirect("http://localhost:3000/auth/error");
+        }
+    }
+
+    @GetMapping("/auth/google/status")
+    public ResponseEntity<?> authStatus() {
+        Map<String, Boolean> response = new LinkedHashMap<>();
+        response.put("authorized", googleCalendarConfig.isAuthorized());
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/events/next-day")
     public ResponseEntity<?> getNextDayEvents() {
         try {
-            return ResponseEntity.ok(eventListingService.getNextDayEvents());
+            return ResponseEntity.ok(eventListingService.getEventsUntil24Hrs());
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
         } catch (Exception e) {

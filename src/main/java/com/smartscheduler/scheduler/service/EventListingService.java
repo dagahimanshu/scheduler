@@ -27,20 +27,16 @@ public class EventListingService {
         this.calendarService = calendarService;
     }
 
-    public List<CalendarEventResponse> getNextDayEvents() throws Exception {
-        LocalDate nextDay = LocalDate.now(ZoneId.of(calendarTimeZone)).plusDays(1);
-        return getEventsForDay(nextDay);
-    }
 
-    private List<CalendarEventResponse> getEventsForDay(LocalDate day) throws Exception {
+    public List<CalendarEventResponse> getEventsUntil24Hrs() throws Exception {
         Calendar service = googleCalendarConfig.getCalendarService();
         ZoneId zoneId = ZoneId.of(calendarTimeZone);
-        ZonedDateTime startOfDay = day.atStartOfDay(zoneId);
-        ZonedDateTime endOfDay = startOfDay.plusDays(1);
+        ZonedDateTime now = ZonedDateTime.now(zoneId);
+        ZonedDateTime endOfDay = now.plusDays(1);
 
         List<Event> events = service.events()
                 .list("primary")
-                .setTimeMin(new DateTime(startOfDay.toInstant().toEpochMilli()))
+                .setTimeMin(new DateTime(now.toInstant().toEpochMilli()))
                 .setTimeMax(new DateTime(endOfDay.toInstant().toEpochMilli()))
                 .setSingleEvents(true)
                 .setOrderBy("startTime")
