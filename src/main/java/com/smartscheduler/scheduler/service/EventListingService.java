@@ -43,9 +43,27 @@ public class EventListingService {
                 .execute()
                 .getItems();
 
-        return events.stream()
-                .map(this::toResponse)
-                .toList();
+        if (events == null) return List.of();
+        return events.stream().map(this::toResponse).toList();
+    }
+
+    public List<CalendarEventResponse> getEventsForWeek(String startDate) throws Exception {
+        Calendar service = googleCalendarConfig.getCalendarService();
+        ZoneId zoneId = ZoneId.of(calendarTimeZone);
+        ZonedDateTime weekStart = LocalDate.parse(startDate).atStartOfDay(zoneId);
+        ZonedDateTime weekEnd = weekStart.plusDays(7);
+
+        List<Event> events = service.events()
+                .list("primary")
+                .setTimeMin(new DateTime(weekStart.toInstant().toEpochMilli()))
+                .setTimeMax(new DateTime(weekEnd.toInstant().toEpochMilli()))
+                .setSingleEvents(true)
+                .setOrderBy("startTime")
+                .execute()
+                .getItems();
+
+        if (events == null) return List.of();
+        return events.stream().map(this::toResponse).toList();
     }
 
     private CalendarEventResponse toResponse(Event event) {

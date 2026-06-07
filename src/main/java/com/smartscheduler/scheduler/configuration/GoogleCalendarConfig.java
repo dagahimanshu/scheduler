@@ -86,7 +86,6 @@ public class GoogleCalendarConfig {
                 .build();
     }
 
-    // ── Check if already authorized (UI can poll this) ────────────────────────
     public boolean isAuthorized() {
         try {
             GoogleAuthorizationCodeFlow flow = buildFlow();
@@ -94,6 +93,20 @@ public class GoogleCalendarConfig {
             return credential != null && credential.getRefreshToken() != null;
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    public void revokeAuthorization() throws Exception {
+        File tokenDir = new File(tokensDirectory);
+        if (tokenDir.exists()) {
+            File[] files = tokenDir.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    if (f.getName().startsWith("StoredCredential")) {
+                        f.delete();
+                    }
+                }
+            }
         }
     }
 
@@ -132,5 +145,42 @@ public class GoogleCalendarConfig {
         if (cp.exists()) return cp.getInputStream();
 
         throw new IllegalStateException("Credentials file not found: " + credentialsPath);
+    }
+
+    public String buildDelegateAuthorizationUrl(String delegateEmail) throws Exception {
+        GoogleAuthorizationCodeFlow flow = buildFlow();
+        return flow.newAuthorizationUrl()
+                .setRedirectUri("http://localhost:9090/delegates/callback/google")
+                .setAccessType("offline")
+                .set("prompt", "consent")
+                .setState(delegateEmail)
+                .build();
+    }
+
+    public void handleDelegateAuthorizationCode(String code, String delegateEmail) throws Exception {
+        GoogleAuthorizationCodeFlow flow = buildFlow();
+        GoogleTokenResponse tokenResponse = new GoogleAuthorizationCodeTokenRequest(
+                GoogleNetHttpTransport.newTrustedTransport(),
+                JSON_FACTORY,
+                cachedClientSecrets.getDetails().getClientId(),
+                cachedClientSecrets.getDetails().getClientSecret(),
+                code,
+                "http://localhost:9090/delegates/callback/google"
+        ).execute();
+        flow.createAndStoreCredential(tokenResponse, delegateEmail);
+    }
+
+    public Calendar getCalendarServiceForDelegate(String delegateEmail) throws Exception {
+        GoogleAuthorizationCodeFlow flow = buildFlow();
+        Credential credential = flow.loadCredential(delegateEmail);
+        if (credential == null) {
+            throw new IllegalStateException("No delegate authorization found for " + delegateEmail);
+        }
+        return new Calendar.Builder(
+                GoogleNetHttpTransport.newTrustedTransport(),
+                JSON_FACTORY,
+                credential)
+                .setApplicationName(APPLICATION_NAME)
+                .build();
     }
 }
