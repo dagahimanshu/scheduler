@@ -37,6 +37,9 @@ build/
 src/main/resources/credentials.json
 application-local.properties
 
+### SQLite ###
+scheduler.db
+
 ### OS / Logs ###
 .DS_Store
 *.log

@@ -26,6 +26,9 @@ public class DelegateController {
     private final GoogleCalendarConfig googleConfig;
     private final MicrosoftCalendarConfig microsoftConfig;
 
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
+
     @Value("${delegate.magic-link-base}")
     private String magicLinkBase;
 
@@ -144,10 +147,10 @@ public class DelegateController {
                 log.warn("No pending request found for delegate: {}", delegateEmail);
             }
 
-            return ResponseEntity.status(302).header("Location", "http://localhost:3000/auth/delegate/success").build();
+            return ResponseEntity.status(302).header("Location", frontendUrl + "/auth/delegate/success").build();
         } catch (Exception e) {
             log.error("Google delegate callback failed for: {}", delegateEmail, e);
-            return ResponseEntity.status(302).header("Location", "http://localhost:3000/auth/delegate/error").build();
+            return ResponseEntity.status(302).header("Location", frontendUrl + "/auth/delegate/error").build();
         }
     }
 
@@ -168,10 +171,10 @@ public class DelegateController {
                 log.warn("No pending request found for delegate: {}", delegateEmail);
             }
 
-            return ResponseEntity.status(302).header("Location", "http://localhost:3000/auth/delegate/success").build();
+            return ResponseEntity.status(302).header("Location", frontendUrl + "/auth/delegate/success").build();
         } catch (Exception e) {
             log.error("Microsoft delegate callback failed for: {}", delegateEmail, e);
-            return ResponseEntity.status(302).header("Location", "http://localhost:3000/auth/delegate/error").build();
+            return ResponseEntity.status(302).header("Location", frontendUrl + "/auth/delegate/error").build();
         }
     }
 

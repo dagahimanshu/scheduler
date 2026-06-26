@@ -13,13 +13,8 @@ import com.google.api.services.calendar.Calendar;
 import com.google.api.services.calendar.CalendarScopes;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.Collections;
 import java.util.List;
 
 @Configuration
@@ -28,46 +23,58 @@ public class GoogleCalendarConfig {
     private GoogleClientSecrets cachedClientSecrets;
 
     private static final String APPLICATION_NAME = "Task Scheduler";
-    private static final List<String> SCOPES = Collections.singletonList(CalendarScopes.CALENDAR);
+    private static final List<String> SCOPES = List.of(CalendarScopes.CALENDAR, "email", "profile");
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
 
-    // This must match exactly what's registered in Google Cloud Console
-    // e.g. http://localhost:9090/auth/google/callback
+    @Value("${google.oauth.client-id:}")
+    private String clientId;
+
+    @Value("${google.oauth.client-secret:}")
+    private String clientSecret;
+
     @Value("${google.oauth.redirect-uri}")
     private String redirectUri;
 
     @Value("${google.oauth.tokens-directory:.oauth-tokens}")
     private String tokensDirectory;
 
-    @Value("${google.oauth.credentials-path:}")
-    private String credentialsPath;
+    @Value("${app.backend-url}")
+    private String backendUrl;
 
     public String buildAuthorizationUrl() throws Exception {
         GoogleAuthorizationCodeFlow flow = buildFlow();
         return flow.newAuthorizationUrl()
                 .setRedirectUri(redirectUri)
                 .setAccessType("offline")
-                // force consent screen so refresh_token is always returned
                 .set("prompt", "consent")
                 .build();
     }
 
-    public void handleAuthorizationCode(String code) throws Exception {
-        GoogleAuthorizationCodeFlow flow = buildFlow(); // populates cachedClientSecrets
+    public String handleAuthorizationCode(String code) throws Exception {
+        GoogleAuthorizationCodeFlow flow = buildFlow();
 
         GoogleTokenResponse tokenResponse = new GoogleAuthorizationCodeTokenRequest(
                 GoogleNetHttpTransport.newTrustedTransport(),
                 JSON_FACTORY,
-                cachedClientSecrets.getDetails().getClientId(),     // ← correct
-                cachedClientSecrets.getDetails().getClientSecret(), // ← correct
+                clientId,
+                clientSecret,
                 code,
                 redirectUri
         ).execute();
 
         flow.createAndStoreCredential(tokenResponse, "user");
+
+        String idTokenStr = tokenResponse.getIdToken();
+        if (idTokenStr != null) {
+            com.google.api.client.googleapis.auth.oauth2.GoogleIdToken idToken =
+                    com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.parse(JSON_FACTORY, idTokenStr);
+            if (idToken != null && idToken.getPayload() != null) {
+                return idToken.getPayload().getEmail();
+            }
+        }
+        return null;
     }
 
-        // ── Used by CalendarService (unchanged behaviour) ─────────────────────────
     public Calendar getCalendarService() throws Exception {
         GoogleAuthorizationCodeFlow flow = buildFlow();
         Credential credential = flow.loadCredential("user");
@@ -112,7 +119,7 @@ public class GoogleCalendarConfig {
 
     private GoogleAuthorizationCodeFlow buildFlow() throws Exception {
         if (cachedClientSecrets == null) {
-            cachedClientSecrets = loadClientSecrets();
+            cachedClientSecrets = buildClientSecrets();
         }
         File tokenStoreDir = new File(tokensDirectory);
 
@@ -126,31 +133,26 @@ public class GoogleCalendarConfig {
                 .build();
     }
 
-    private GoogleClientSecrets loadClientSecrets() throws Exception {
-        if (credentialsPath == null || credentialsPath.isBlank()) {
+    private GoogleClientSecrets buildClientSecrets() {
+        if (clientId == null || clientId.isBlank()) {
             throw new IllegalStateException(
-                    "Set google.oauth.credentials-path in application-local.properties"
-            );
+                    "Set google.oauth.client-id in application-local.properties");
         }
-        try (InputStream in = openCredentialsStream()) {
-            return GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
-        }
-    }
+        GoogleClientSecrets.Details details = new GoogleClientSecrets.Details();
+        details.setClientId(clientId);
+        details.setClientSecret(clientSecret);
+        details.setAuthUri("https://accounts.google.com/o/oauth2/auth");
+        details.setTokenUri("https://oauth2.googleapis.com/token");
 
-    private InputStream openCredentialsStream() throws Exception {
-        File file = new File(credentialsPath);
-        if (file.exists()) return new FileInputStream(file);
-
-        ClassPathResource cp = new ClassPathResource(credentialsPath);
-        if (cp.exists()) return cp.getInputStream();
-
-        throw new IllegalStateException("Credentials file not found: " + credentialsPath);
+        GoogleClientSecrets secrets = new GoogleClientSecrets();
+        secrets.setInstalled(details);
+        return secrets;
     }
 
     public String buildDelegateAuthorizationUrl(String delegateEmail) throws Exception {
         GoogleAuthorizationCodeFlow flow = buildFlow();
         return flow.newAuthorizationUrl()
-                .setRedirectUri("http://localhost:9090/delegates/callback/google")
+                .setRedirectUri(backendUrl + "/delegates/callback/google")
                 .setAccessType("offline")
                 .set("prompt", "consent")
                 .setState(delegateEmail)
@@ -162,10 +164,10 @@ public class GoogleCalendarConfig {
         GoogleTokenResponse tokenResponse = new GoogleAuthorizationCodeTokenRequest(
                 GoogleNetHttpTransport.newTrustedTransport(),
                 JSON_FACTORY,
-                cachedClientSecrets.getDetails().getClientId(),
-                cachedClientSecrets.getDetails().getClientSecret(),
+                clientId,
+                clientSecret,
                 code,
-                "http://localhost:9090/delegates/callback/google"
+                backendUrl + "/delegates/callback/google"
         ).execute();
         flow.createAndStoreCredential(tokenResponse, delegateEmail);
     }

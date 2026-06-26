@@ -11,6 +11,7 @@ import com.smartscheduler.scheduler.service.PriorityService;
 import com.smartscheduler.scheduler.service.ProviderDetectionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +25,9 @@ import java.util.Map;
 public class SchedulerController {
 
     private static final Logger log = LoggerFactory.getLogger(SchedulerController.class);
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     private final CalendarService calendarService;
     private final EventListingService eventListingService;
@@ -212,12 +216,14 @@ public class SchedulerController {
     public void handleGoogleCallback(@RequestParam String code) throws IOException {
         log.info("auth/google/callback received code: {}...", code.substring(0, Math.min(10, code.length())));
         try {
-            googleCalendarConfig.handleAuthorizationCode(code);
-            log.info("auth/google/callback success — redirecting to /auth/success");
-            httpResponse.sendRedirect("http://localhost:3000/auth/success?provider=google");
+            String email = googleCalendarConfig.handleAuthorizationCode(code);
+            log.info("auth/google/callback success, email={}", email);
+            String redirect = frontendUrl + "/auth/success?provider=google";
+            if (email != null) redirect += "&email=" + java.net.URLEncoder.encode(email, "UTF-8");
+            httpResponse.sendRedirect(redirect);
         } catch (Exception e) {
             log.error("auth/google/callback failed", e);
-            httpResponse.sendRedirect("http://localhost:3000/auth/error?provider=google");
+            httpResponse.sendRedirect(frontendUrl + "/auth/error?provider=google");
         }
     }
 
@@ -248,10 +254,10 @@ public class SchedulerController {
         try {
             microsoftCalendarConfig.handleAuthorizationCode(code);
             log.info("auth/microsoft/callback success — redirecting to /auth/success");
-            httpResponse.sendRedirect("http://localhost:3000/auth/success?provider=microsoft");
+            httpResponse.sendRedirect(frontendUrl + "/auth/success?provider=microsoft");
         } catch (Exception e) {
             log.error("auth/microsoft/callback failed", e);
-            httpResponse.sendRedirect("http://localhost:3000/auth/error?provider=microsoft");
+            httpResponse.sendRedirect(frontendUrl + "/auth/error?provider=microsoft");
         }
     }
 

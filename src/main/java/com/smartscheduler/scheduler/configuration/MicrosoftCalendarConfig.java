@@ -39,6 +39,9 @@ public class MicrosoftCalendarConfig {
     @Value("${microsoft.oauth.tokens-directory:.oauth-tokens}")
     private String tokensDirectory;
 
+    @Value("${app.backend-url}")
+    private String backendUrl;
+
     private static final String TOKEN_FILE = "microsoft-tokens.json";
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final Gson gson = new Gson();
@@ -181,7 +184,7 @@ public class MicrosoftCalendarConfig {
         return authEndpoint
                 + "?client_id=" + enc(clientId)
                 + "&response_type=code"
-                + "&redirect_uri=" + enc("http://localhost:9090/delegates/callback/microsoft")
+                + "&redirect_uri=" + enc(backendUrl + "/delegates/callback/microsoft")
                 + "&response_mode=query"
                 + "&scope=" + enc(SCOPES)
                 + "&prompt=select_account"
@@ -194,7 +197,7 @@ public class MicrosoftCalendarConfig {
         body.add("client_id=" + enc(clientId));
         body.add("client_secret=" + enc(clientSecret));
         body.add("code=" + enc(code));
-        body.add("redirect_uri=" + enc("http://localhost:9090/delegates/callback/microsoft"));
+        body.add("redirect_uri=" + enc(backendUrl + "/delegates/callback/microsoft"));
         body.add("grant_type=authorization_code");
         body.add("scope=" + enc(SCOPES));
 
