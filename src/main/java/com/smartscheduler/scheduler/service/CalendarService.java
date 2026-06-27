@@ -35,7 +35,7 @@ public class CalendarService {
     @Value("${google.calendar.time-zone:Asia/Kolkata}")
     private String calendarTimeZone;
 
-    public String createEvent(TaskRequest task) throws Exception {
+    public String createEvent(TaskRequest task, String timezone) throws Exception {
         log.info("createEvent called: title={}, date={}, time={}, endTime={}, priority={}",
                 task.getTitle(), task.getDate(), task.getTime(), task.getEndTime(), task.getPriority());
 
@@ -47,7 +47,7 @@ public class CalendarService {
             service = config.getCalendarService();
         }
 
-        ZoneId zoneId = ZoneId.of(calendarTimeZone);
+        ZoneId zoneId = ZoneId.of(timezone != null ? timezone : calendarTimeZone);
         ZonedDateTime startAt = LocalDate.parse(task.getDate())
                 .atTime(LocalTime.parse(task.getTime()))
                 .atZone(zoneId);
@@ -163,7 +163,7 @@ public class CalendarService {
         };
     }
 
-    public void updateEventTime(String eventId, String newStart, String newEnd) throws Exception {
+    public void updateEventTime(String eventId, String newStart, String newEnd, String timezone) throws Exception {
         log.info("updateEventTime called: eventId={}, newStart={}, newEnd={}", eventId, newStart, newEnd);
         Calendar service = config.getCalendarService();
 
@@ -171,7 +171,7 @@ public class CalendarService {
         Event event = service.events().get("primary", eventId).execute();
         log.info("Got event: {} ({})", event.getSummary(), event.getId());
 
-        ZoneId zoneId = ZoneId.of(calendarTimeZone);
+        ZoneId zoneId = ZoneId.of(timezone != null ? timezone : calendarTimeZone);
 
         log.info("Parsing start: {}", newStart);
         DateTime startDateTime = new DateTime(newStart);

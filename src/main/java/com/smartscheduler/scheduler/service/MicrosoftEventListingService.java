@@ -40,9 +40,9 @@ public class MicrosoftEventListingService {
         this.microsoftCalendarService = microsoftCalendarService;
     }
 
-    public List<CalendarEventResponse> getEventsUntil24Hrs() throws Exception {
+    public List<CalendarEventResponse> getEventsUntil24Hrs(String timezone) throws Exception {
         String accessToken = config.getAccessToken();
-        ZoneId zoneId = ZoneId.of(calendarTimeZone);
+        ZoneId zoneId = ZoneId.of(timezone != null ? timezone : calendarTimeZone);
         ZonedDateTime now = ZonedDateTime.now(zoneId);
         ZonedDateTime end = now.plusDays(1);
 
@@ -79,9 +79,9 @@ public class MicrosoftEventListingService {
         return results;
     }
 
-    public List<CalendarEventResponse> getEventsForWeek(String startDate) throws Exception {
+    public List<CalendarEventResponse> getEventsForWeek(String startDate, String timezone) throws Exception {
         String accessToken = config.getAccessToken();
-        ZoneId zoneId = ZoneId.of(calendarTimeZone);
+        ZoneId zoneId = ZoneId.of(timezone != null ? timezone : calendarTimeZone);
         ZonedDateTime weekStart = java.time.LocalDate.parse(startDate).atStartOfDay(zoneId);
         ZonedDateTime weekEnd = weekStart.plusDays(7);
 

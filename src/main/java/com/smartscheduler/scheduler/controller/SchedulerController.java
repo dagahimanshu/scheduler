@@ -98,15 +98,16 @@ public class SchedulerController {
     // ── Task creation (routes to detected provider) ───────────────────────────
 
     @PostMapping("/tasks")
-    public ResponseEntity<?> createTask(@RequestBody TaskRequest task) {
+    public ResponseEntity<?> createTask(@RequestBody TaskRequest task,
+                                         @RequestHeader(value = "X-Timezone", required = false) String timezone) {
         try {
             priorityService.populateMissingPriority(task);
 
             String link;
             if (isMicrosoft(task.getProvider())) {
-                link = microsoftCalendarService.createEvent(task);
+                link = microsoftCalendarService.createEvent(task, timezone);
             } else {
-                link = calendarService.createEvent(task);
+                link = calendarService.createEvent(task, timezone);
             }
 
             Map<String, Object> response = new LinkedHashMap<>();
@@ -128,12 +129,13 @@ public class SchedulerController {
 
     @GetMapping("/events/next-day")
     public ResponseEntity<?> getNextDayEvents(
-            @RequestParam(value = "provider", defaultValue = "google") String provider) {
+            @RequestParam(value = "provider", defaultValue = "google") String provider,
+            @RequestHeader(value = "X-Timezone", required = false) String timezone) {
         try {
             if (isMicrosoft(provider)) {
-                return ResponseEntity.ok(microsoftEventListingService.getEventsUntil24Hrs());
+                return ResponseEntity.ok(microsoftEventListingService.getEventsUntil24Hrs(timezone));
             }
-            return ResponseEntity.ok(eventListingService.getEventsUntil24Hrs());
+            return ResponseEntity.ok(eventListingService.getEventsUntil24Hrs(timezone));
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
         } catch (Exception e) {
@@ -146,13 +148,14 @@ public class SchedulerController {
     @GetMapping("/events/week")
     public ResponseEntity<?> getWeekEvents(
             @RequestParam(value = "provider", defaultValue = "google") String provider,
-            @RequestParam String startDate) {
-        log.info("events/week called: provider={}, startDate={}", provider, startDate);
+            @RequestParam String startDate,
+            @RequestHeader(value = "X-Timezone", required = false) String timezone) {
+        log.info("events/week called: provider={}, startDate={}, tz={}", provider, startDate, timezone);
         try {
             if (isMicrosoft(provider)) {
-                return ResponseEntity.ok(microsoftEventListingService.getEventsForWeek(startDate));
+                return ResponseEntity.ok(microsoftEventListingService.getEventsForWeek(startDate, timezone));
             }
-            return ResponseEntity.ok(eventListingService.getEventsForWeek(startDate));
+            return ResponseEntity.ok(eventListingService.getEventsForWeek(startDate, timezone));
         } catch (IllegalStateException e) {
             log.error("events/week unauthorized: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
@@ -167,7 +170,8 @@ public class SchedulerController {
     @PatchMapping("/events/{eventId}")
     public ResponseEntity<?> updateEventTime(
             @PathVariable String eventId,
-            @RequestBody Map<String, String> body) {
+            @RequestBody Map<String, String> body,
+            @RequestHeader(value = "X-Timezone", required = false) String timezone) {
         log.info("PATCH /events/{} called with body: {}", eventId, body);
         try {
             String start = body.get("start");
@@ -179,10 +183,10 @@ public class SchedulerController {
             }
 
             if (isMicrosoft(provider)) {
-                String timeZone = body.getOrDefault("timeZone", "Asia/Kolkata");
+                String timeZone = timezone != null ? timezone : body.getOrDefault("timeZone", "Asia/Kolkata");
                 microsoftCalendarService.updateEventTime(eventId, start, end, timeZone);
             } else {
-                calendarService.updateEventTime(eventId, start, end);
+                calendarService.updateEventTime(eventId, start, end, timezone);
             }
 
             log.info("Event {} updated successfully via {}", eventId, provider);

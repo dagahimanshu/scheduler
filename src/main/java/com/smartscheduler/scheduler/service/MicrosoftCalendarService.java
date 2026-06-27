@@ -41,7 +41,7 @@ public class MicrosoftCalendarService {
         this.config = config;
     }
 
-    public String createEvent(TaskRequest task) throws Exception {
+    public String createEvent(TaskRequest task, String timezone) throws Exception {
         String accessToken;
         if (task.getDelegateEmail() != null && !task.getDelegateEmail().isBlank()) {
             log.info("Creating event as delegate for: {}", task.getDelegateEmail());
@@ -50,7 +50,7 @@ public class MicrosoftCalendarService {
             accessToken = config.getAccessToken();
         }
 
-        ZoneId zoneId = ZoneId.of(calendarTimeZone);
+        ZoneId zoneId = ZoneId.of(timezone != null ? timezone : calendarTimeZone);
         ZonedDateTime startAt = LocalDate.parse(task.getDate())
                 .atTime(LocalTime.parse(task.getTime()))
                 .atZone(zoneId);
