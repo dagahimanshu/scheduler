@@ -28,8 +28,8 @@ public class EventListingService {
     }
 
 
-    public List<CalendarEventResponse> getEventsUntil24Hrs(String timezone) throws Exception {
-        Calendar service = googleCalendarConfig.getCalendarService();
+    public List<CalendarEventResponse> getEventsUntil24Hrs(String timezone, String userEmail) throws Exception {
+        Calendar service = googleCalendarConfig.getCalendarService(userEmail);
         ZoneId zoneId = ZoneId.of(timezone != null ? timezone : calendarTimeZone);
         ZonedDateTime now = ZonedDateTime.now(zoneId);
         ZonedDateTime endOfDay = now.plusDays(1);
@@ -47,8 +47,8 @@ public class EventListingService {
         return events.stream().map(this::toResponse).toList();
     }
 
-    public List<CalendarEventResponse> getEventsForWeek(String startDate, String timezone) throws Exception {
-        Calendar service = googleCalendarConfig.getCalendarService();
+    public List<CalendarEventResponse> getEventsForWeek(String startDate, String timezone, String userEmail) throws Exception {
+        Calendar service = googleCalendarConfig.getCalendarService(userEmail);
         ZoneId zoneId = ZoneId.of(timezone != null ? timezone : calendarTimeZone);
         ZonedDateTime weekStart = LocalDate.parse(startDate).atStartOfDay(zoneId);
         ZonedDateTime weekEnd = weekStart.plusDays(7);

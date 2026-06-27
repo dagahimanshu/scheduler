@@ -62,22 +62,23 @@ public class GoogleCalendarConfig {
                 redirectUri
         ).execute();
 
-        flow.createAndStoreCredential(tokenResponse, "user");
-
+        String email = null;
         String idTokenStr = tokenResponse.getIdToken();
         if (idTokenStr != null) {
             com.google.api.client.googleapis.auth.oauth2.GoogleIdToken idToken =
                     com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.parse(JSON_FACTORY, idTokenStr);
             if (idToken != null && idToken.getPayload() != null) {
-                return idToken.getPayload().getEmail();
+                email = idToken.getPayload().getEmail();
             }
         }
-        return null;
+        String credentialKey = email != null ? email : "user";
+        flow.createAndStoreCredential(tokenResponse, credentialKey);
+        return email;
     }
 
-    public Calendar getCalendarService() throws Exception {
+    public Calendar getCalendarService(String userEmail) throws Exception {
         GoogleAuthorizationCodeFlow flow = buildFlow();
-        Credential credential = flow.loadCredential("user");
+        Credential credential = flow.loadCredential(userEmail);
 
         if (credential == null) {
             throw new IllegalStateException(
@@ -93,10 +94,10 @@ public class GoogleCalendarConfig {
                 .build();
     }
 
-    public boolean isAuthorized() {
+    public boolean isAuthorized(String userEmail) {
         try {
             GoogleAuthorizationCodeFlow flow = buildFlow();
-            Credential credential = flow.loadCredential("user");
+            Credential credential = flow.loadCredential(userEmail);
             return credential != null && credential.getRefreshToken() != null;
         } catch (Exception e) {
             return false;

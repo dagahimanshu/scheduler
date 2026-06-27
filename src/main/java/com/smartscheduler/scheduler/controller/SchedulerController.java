@@ -78,7 +78,7 @@ public class SchedulerController {
             }
             boolean authorized = "microsoft".equals(provider)
                     ? microsoftCalendarConfig.isAuthorized()
-                    : googleCalendarConfig.isAuthorized();
+                    : googleCalendarConfig.isAuthorized(email);
             log.info("detect-provider: provider={}, authorized={}", provider, authorized);
             return ResponseEntity.ok(Map.of(
                     "provider", provider,
@@ -107,7 +107,7 @@ public class SchedulerController {
             if (isMicrosoft(task.getProvider())) {
                 link = microsoftCalendarService.createEvent(task, timezone);
             } else {
-                link = calendarService.createEvent(task, timezone);
+                link = calendarService.createEvent(task, timezone, currentUserEmail());
             }
 
             Map<String, Object> response = new LinkedHashMap<>();
@@ -135,7 +135,7 @@ public class SchedulerController {
             if (isMicrosoft(provider)) {
                 return ResponseEntity.ok(microsoftEventListingService.getEventsUntil24Hrs(timezone));
             }
-            return ResponseEntity.ok(eventListingService.getEventsUntil24Hrs(timezone));
+            return ResponseEntity.ok(eventListingService.getEventsUntil24Hrs(timezone, currentUserEmail()));
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
         } catch (Exception e) {
@@ -155,7 +155,7 @@ public class SchedulerController {
             if (isMicrosoft(provider)) {
                 return ResponseEntity.ok(microsoftEventListingService.getEventsForWeek(startDate, timezone));
             }
-            return ResponseEntity.ok(eventListingService.getEventsForWeek(startDate, timezone));
+            return ResponseEntity.ok(eventListingService.getEventsForWeek(startDate, timezone, currentUserEmail()));
         } catch (IllegalStateException e) {
             log.error("events/week unauthorized: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
@@ -186,7 +186,7 @@ public class SchedulerController {
                 String timeZone = timezone != null ? timezone : body.getOrDefault("timeZone", "Asia/Kolkata");
                 microsoftCalendarService.updateEventTime(eventId, start, end, timeZone);
             } else {
-                calendarService.updateEventTime(eventId, start, end, timezone);
+                calendarService.updateEventTime(eventId, start, end, timezone, currentUserEmail());
             }
 
             log.info("Event {} updated successfully via {}", eventId, provider);
@@ -233,7 +233,7 @@ public class SchedulerController {
 
     @GetMapping("/auth/google/status")
     public ResponseEntity<?> googleAuthStatus() {
-        return ResponseEntity.ok(Map.of("authorized", googleCalendarConfig.isAuthorized()));
+        return ResponseEntity.ok(Map.of("authorized", googleCalendarConfig.isAuthorized(currentUserEmail())));
     }
 
     // ── Microsoft OAuth ───────────────────────────────────────────────────────
@@ -275,7 +275,7 @@ public class SchedulerController {
     @GetMapping("/auth/status")
     public ResponseEntity<?> combinedAuthStatus() {
         Map<String, Object> status = new LinkedHashMap<>();
-        status.put("google", Map.of("authorized", googleCalendarConfig.isAuthorized()));
+        status.put("google", Map.of("authorized", googleCalendarConfig.isAuthorized(currentUserEmail())));
         status.put("microsoft", Map.of("authorized", microsoftCalendarConfig.isAuthorized()));
         return ResponseEntity.ok(status);
     }
@@ -326,5 +326,10 @@ public class SchedulerController {
 
     private boolean isMicrosoft(String provider) {
         return "microsoft".equalsIgnoreCase(provider);
+    }
+
+    private String currentUserEmail() {
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        return auth != null ? auth.getName() : "user";
     }
 }

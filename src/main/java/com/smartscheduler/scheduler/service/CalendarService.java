@@ -35,7 +35,7 @@ public class CalendarService {
     @Value("${google.calendar.time-zone:Asia/Kolkata}")
     private String calendarTimeZone;
 
-    public String createEvent(TaskRequest task, String timezone) throws Exception {
+    public String createEvent(TaskRequest task, String timezone, String userEmail) throws Exception {
         log.info("createEvent called: title={}, date={}, time={}, endTime={}, priority={}",
                 task.getTitle(), task.getDate(), task.getTime(), task.getEndTime(), task.getPriority());
 
@@ -44,7 +44,7 @@ public class CalendarService {
             log.info("Creating event as delegate for: {}", task.getDelegateEmail());
             service = config.getCalendarServiceForDelegate(task.getDelegateEmail());
         } else {
-            service = config.getCalendarService();
+            service = config.getCalendarService(userEmail);
         }
 
         ZoneId zoneId = ZoneId.of(timezone != null ? timezone : calendarTimeZone);
@@ -163,9 +163,9 @@ public class CalendarService {
         };
     }
 
-    public void updateEventTime(String eventId, String newStart, String newEnd, String timezone) throws Exception {
+    public void updateEventTime(String eventId, String newStart, String newEnd, String timezone, String userEmail) throws Exception {
         log.info("updateEventTime called: eventId={}, newStart={}, newEnd={}", eventId, newStart, newEnd);
-        Calendar service = config.getCalendarService();
+        Calendar service = config.getCalendarService(userEmail);
 
         log.info("Fetching existing event: {}", eventId);
         Event event = service.events().get("primary", eventId).execute();
