@@ -176,7 +176,7 @@ public class MicrosoftCalendarConfig {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
-    public String buildDelegateAuthorizationUrl(String delegateEmail) {
+    public String buildDelegateAuthorizationUrl(String stateToken) {
         if (clientId == null || clientId.isBlank()) {
             throw new IllegalStateException("Set microsoft.oauth.client-id");
         }
@@ -188,7 +188,7 @@ public class MicrosoftCalendarConfig {
                 + "&response_mode=query"
                 + "&scope=" + enc(SCOPES)
                 + "&prompt=select_account"
-                + "&state=" + enc(delegateEmail);
+                + "&state=" + enc(stateToken);
     }
 
     public void handleDelegateAuthorizationCode(String code, String delegateEmail) throws Exception {

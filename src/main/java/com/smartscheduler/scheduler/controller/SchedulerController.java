@@ -110,12 +110,19 @@ public class SchedulerController {
                 link = calendarService.createEvent(task, timezone, currentUserEmail());
             }
 
+            String createdBy = currentUserEmail();
+            boolean isDelegate = task.getDelegateEmail() != null && !task.getDelegateEmail().isBlank();
+
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("message", "Event created");
             response.put("eventLink", link);
             response.put("priority", task.getPriority());
             response.put("description", task.getDescription());
             response.put("provider", isMicrosoft(task.getProvider()) ? "microsoft" : "google");
+            response.put("createdBy", createdBy);
+            if (isDelegate) {
+                response.put("createdOnBehalfOf", task.getDelegateEmail());
+            }
 
             return ResponseEntity.ok(response);
         } catch (IllegalStateException e) {

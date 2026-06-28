@@ -150,17 +150,21 @@ public class GoogleCalendarConfig {
         return secrets;
     }
 
-    public String buildDelegateAuthorizationUrl(String delegateEmail) throws Exception {
+    public String buildDelegateAuthorizationUrl(String stateToken) throws Exception {
         GoogleAuthorizationCodeFlow flow = buildFlow();
         return flow.newAuthorizationUrl()
                 .setRedirectUri(backendUrl + "/delegates/callback/google")
                 .setAccessType("offline")
                 .set("prompt", "consent")
-                .setState(delegateEmail)
+                .setState(stateToken)
                 .build();
     }
 
-    public void handleDelegateAuthorizationCode(String code, String delegateEmail) throws Exception {
+    /**
+     * Exchanges the OAuth code for tokens, stores credentials under delegateEmail,
+     * and returns the authenticated Google email for verification.
+     */
+    public String handleDelegateAuthorizationCode(String code, String delegateEmail) throws Exception {
         GoogleAuthorizationCodeFlow flow = buildFlow();
         GoogleTokenResponse tokenResponse = new GoogleAuthorizationCodeTokenRequest(
                 GoogleNetHttpTransport.newTrustedTransport(),
@@ -171,6 +175,17 @@ public class GoogleCalendarConfig {
                 backendUrl + "/delegates/callback/google"
         ).execute();
         flow.createAndStoreCredential(tokenResponse, delegateEmail);
+
+        String authenticatedEmail = null;
+        String idTokenStr = tokenResponse.getIdToken();
+        if (idTokenStr != null) {
+            com.google.api.client.googleapis.auth.oauth2.GoogleIdToken idToken =
+                    com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.parse(JSON_FACTORY, idTokenStr);
+            if (idToken != null && idToken.getPayload() != null) {
+                authenticatedEmail = idToken.getPayload().getEmail();
+            }
+        }
+        return authenticatedEmail;
     }
 
     public Calendar getCalendarServiceForDelegate(String delegateEmail) throws Exception {

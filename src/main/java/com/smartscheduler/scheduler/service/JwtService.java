@@ -62,4 +62,25 @@ public class JwtService {
     public String getEmailFromToken(String token) {
         return validateToken(token).getSubject();
     }
+
+    public String generateDelegateToken(String requesterEmail, String delegateEmail, String provider) {
+        Instant now = Instant.now();
+        return Jwts.builder()
+                .subject(delegateEmail)
+                .claim("requester", requesterEmail)
+                .claim("provider", provider)
+                .claim("purpose", "delegate-magic-auth")
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plus(48, ChronoUnit.HOURS)))
+                .signWith(signingKey)
+                .compact();
+    }
+
+    public Claims validateDelegateToken(String token) {
+        Claims claims = validateToken(token);
+        if (!"delegate-magic-auth".equals(claims.get("purpose", String.class))) {
+            throw new io.jsonwebtoken.JwtException("Not a delegate magic-auth token");
+        }
+        return claims;
+    }
 }
