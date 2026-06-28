@@ -200,6 +200,27 @@ public class SchedulerController {
         }
     }
 
+    // ── Event deletion ──────────────────────────────────────────────────────
+
+    @DeleteMapping("/events/{eventId}")
+    public ResponseEntity<?> deleteEvent(
+            @PathVariable String eventId,
+            @RequestParam(value = "provider", defaultValue = "google") String provider) {
+        log.info("DELETE /events/{} called, provider={}", eventId, provider);
+        try {
+            if (isMicrosoft(provider)) {
+                return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body("Microsoft delete not yet supported");
+            }
+            calendarService.deleteEvent(eventId, currentUserEmail());
+            return ResponseEntity.ok(Map.of("message", "Event deleted", "eventId", eventId));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+        } catch (Exception e) {
+            log.error("DELETE /events/{} failed", eventId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
     // ── Google OAuth ──────────────────────────────────────────────────────────
 
     @GetMapping("/auth/google/url")

@@ -19,4 +19,5 @@ public class TaskRequest {
     private String recurrence; // e.g. "DAILY", "WEEKLY", "WEEKDAYS", "MONTHLY", or null for one-time
     private Integer recurrenceCount; // how many occurrences (default 52 for weekly, 30 for daily)
     private String delegateEmail;
+    private Boolean allDay;
 }

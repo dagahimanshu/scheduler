@@ -48,27 +48,33 @@ public class CalendarService {
         }
 
         ZoneId zoneId = ZoneId.of(timezone != null ? timezone : calendarTimeZone);
-        ZonedDateTime startAt = LocalDate.parse(task.getDate())
-                .atTime(LocalTime.parse(task.getTime()))
-                .atZone(zoneId);
-        ZonedDateTime endAt;
-        if (task.getEndTime() != null && !task.getEndTime().isBlank()) {
-            endAt = LocalDate.parse(task.getDate())
-                    .atTime(LocalTime.parse(task.getEndTime()))
-                    .atZone(zoneId);
+
+        EventDateTime start;
+        EventDateTime end;
+
+        if (Boolean.TRUE.equals(task.getAllDay())) {
+            start = new EventDateTime().setDate(new DateTime(task.getDate()));
+            LocalDate nextDay = LocalDate.parse(task.getDate()).plusDays(1);
+            end = new EventDateTime().setDate(new DateTime(nextDay.toString()));
         } else {
-            endAt = startAt.plusHours(1);
+            ZonedDateTime startAt = LocalDate.parse(task.getDate())
+                    .atTime(LocalTime.parse(task.getTime()))
+                    .atZone(zoneId);
+            ZonedDateTime endAt;
+            if (task.getEndTime() != null && !task.getEndTime().isBlank()) {
+                endAt = LocalDate.parse(task.getDate())
+                        .atTime(LocalTime.parse(task.getEndTime()))
+                        .atZone(zoneId);
+            } else {
+                endAt = startAt.plusHours(1);
+            }
+            start = new EventDateTime()
+                    .setDateTime(new DateTime(startAt.toInstant().toEpochMilli()))
+                    .setTimeZone(zoneId.getId());
+            end = new EventDateTime()
+                    .setDateTime(new DateTime(endAt.toInstant().toEpochMilli()))
+                    .setTimeZone(zoneId.getId());
         }
-
-        DateTime startDateTime = new DateTime(startAt.toInstant().toEpochMilli());
-        EventDateTime start = new EventDateTime()
-                .setDateTime(startDateTime)
-                .setTimeZone(zoneId.getId());
-
-        DateTime endDateTime = new DateTime(endAt.toInstant().toEpochMilli());
-        EventDateTime end = new EventDateTime()
-                .setDateTime(endDateTime)
-                .setTimeZone(zoneId.getId());
 
         Event event = new Event()
                 .setSummary(resolveSummary(task))
@@ -161,6 +167,13 @@ public class CalendarService {
             case "2" -> TaskPriority.LOW;
             default -> null;
         };
+    }
+
+    public void deleteEvent(String eventId, String userEmail) throws Exception {
+        log.info("deleteEvent called: eventId={}", eventId);
+        Calendar service = config.getCalendarService(userEmail);
+        service.events().delete("primary", eventId).execute();
+        log.info("Event {} deleted successfully", eventId);
     }
 
     public void updateEventTime(String eventId, String newStart, String newEnd, String timezone, String userEmail) throws Exception {
